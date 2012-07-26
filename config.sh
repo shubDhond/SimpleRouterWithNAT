@@ -1,5 +1,17 @@
 #!/bin/bash
 
+IPCONFIG="~/IP_CONFIG"
+RTABLE="~/rtable"
+
+if [ -f $IPCONFIG ]; then 
+    mv $IPCONFIG ~/cs144_lab5/
+fi
+
+if [ -f $RTABLE ]; then 
+    mv $RTABLE ~/cs144_lab5/
+fi
+
+
 cd pox_module
 sudo python setup.py develop
 
