@@ -1,7 +1,7 @@
 #!/bin/bash
 
-IPCONFIG="~/IP_CONFIG"
-RTABLE="~/rtable"
+IPCONFIG="/home/ubuntu/IP_CONFIG"
+RTABLE="/home/ubuntu/rtable"
 
 if [ -f $IPCONFIG ]; then 
     mv $IPCONFIG ~/cs144_lab5/
