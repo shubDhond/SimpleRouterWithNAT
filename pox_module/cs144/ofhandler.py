@@ -74,7 +74,7 @@ class OFHandler (EventMixin):
     self.connection = connection
     self.transparent = transparent
     self.sw_info = {}
-    self.connection.send(of.ofp_switch_config(miss_send_len = 20000))
+    self.connection.send(of.ofp_switch_config(miss_send_len = 65535))
     for port in connection.features.ports:
         intf_name = port.name.split('-')
         if(len(intf_name) < 2):
