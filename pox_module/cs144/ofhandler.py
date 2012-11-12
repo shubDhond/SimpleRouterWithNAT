@@ -246,6 +246,46 @@ class SRPacketIn(Event):
     self.pkt = packet
     self.port = port
 
+# Credits to:
+# https://github.com/noxrepo/pox/blob/master/pox/nom_l2_switch_controller/learning_switch.py
+class LearningSwitch (EventMixin):
+  def __init__(self, connection, transparent):
+    self.connection = connection
+    self.transparent = transparent
+    self.mac_to_port = {}
+    self.listenTo(connection)
+
+  def _handle_PacketIn(self, event):
+    def flood():
+      msg = of.ofp_packet_out()
+      msg.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
+      msg.buffer_id = event.ofp.buffer_id
+      msg.in_port = event.port
+      event.connection.send(msg)
+
+    packet = event.parse()
+    self.mac_to_port[packet.src] = event.port
+    if packet.dst.isMulticast():
+      flood()
+    else:
+      if packet.dst not in self.mac_to_port:
+        log.debug("port for %s unknown -- flooding" % (packet.dst,))
+        flood()
+      else:
+        port = self.mac_to_port[packet.dst]
+        log.debug("installing flow for %s.%i -> %s.%i" %
+                  (packet.src, event.port, packet.dst, port))
+        msg = of.ofp_flow_mod()
+        #msg.match = of.ofp_match.from_packet(packet)
+        msg.match = of.ofp_match(in_port=event.port,
+                                 dl_dst=EthAddr(packet.dst))
+        msg.idle_timeout = 10
+        msg.hard_timeout = 30
+        msg.actions.append(of.ofp_action_output(port=port))
+        msg.buffer_id = event.ofp.buffer_id
+        event.connection.send(msg)
+    return
+
 class cs144_ofhandler (EventMixin):
   """
   Waits for OpenFlow switches to connect and makes them learning switches.
@@ -260,10 +300,13 @@ class cs144_ofhandler (EventMixin):
   def _handle_ConnectionUp (self, event):
     log.debug("Connection %s" % (event.connection,))
     if( event.dpid == 1):
-      msg = of.ofp_flow_mod()
-      msg.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
-      event.connection.send(msg)
-      log.info("Hubifying %s", dpidToStr(event.dpid))
+      # If the packet is from SR switch
+      #msg = of.ofp_flow_mod()
+      #msg.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
+      #event.connection.send(msg)
+      #log.info("Hubifying %s", dpidToStr(event.dpid))
+      log.info("Creating learning switch %s" % dpidToStr(event.dpid))
+      LearningSwitch(event.connection, self.transparent)
     else:
       OFHandler(event.connection, self.transparent)
 
