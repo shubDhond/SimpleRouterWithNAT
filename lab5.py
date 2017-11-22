@@ -26,11 +26,11 @@ class CS144Topo( Topo ):
     
     def __init__( self, *args, **kwargs ):
         Topo.__init__( self, *args, **kwargs )
-        server1 = self.add_host( 'server1' )
-        server2 = self.add_host( 'server2' )
+        server1 = self.addHost( 'server1' )
+        server2 = self.addHost( 'server2' )
         nat = self.add_switch( 'sw0' )
         bridge = self.add_switch( 'sw1' )
-        client = self.add_host('client')
+        client = self.addHost('client')
         self.add_link(client, nat)
         for h in server1, server2, nat: #client, root:
             self.add_link( h,  bridge)
