@@ -74,4 +74,6 @@ void sr_set_ether_ip(struct sr_instance* , uint32_t );
 void sr_set_ether_addr(struct sr_instance* , const unsigned char* );
 void sr_print_if_list(struct sr_instance* );
 
+char* sr_lpm(struct sr_instance* sr, uint32_t ip);
+void send_icmp_t3(struct sr_instance* sr, uint8_t* packet, int type, int code, uint len, char* iface);
 #endif /* SR_ROUTER_H */

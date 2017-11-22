@@ -1,6 +1,7 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -10,6 +11,131 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_protocol.h"
+#include "sr_utils.h"
+
+void send_icmp_t3(struct sr_instance* sr, uint8_t* packet, int type, int code, uint len, char* iface) {
+    printf("Sending icmp packet type: %d and code: %d\n", type, code);
+    sr_ip_hdr_t* ip_header = (sr_ip_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
+
+    /* New ICMP packet */
+    uint8_t* icmp = (uint8_t*) malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
+    sr_ethernet_hdr_t *icmp_ether = (sr_ethernet_hdr_t *) icmp;
+    sr_ip_hdr_t *icmp_ip = (sr_ip_hdr_t *) (icmp + sizeof(sr_ethernet_hdr_t));
+    sr_icmp_t3_hdr_t* icmp_header = (sr_icmp_t3_hdr_t*) (icmp + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+
+    char* mac = sr_lpm(sr, ip_header->ip_src);
+    if (mac == NULL) {
+        return;
+    }
+    printf("Found MAC\n");
+    struct sr_if* mac_interface = sr_get_interface(sr, mac);
+    if (!mac_interface) {
+        return;
+    }
+    icmp_ip->ip_src = mac_interface->ip;
+    if (type == 3 && code == 3) {
+        icmp_ip->ip_src = ip_header->ip_dst;
+    }
+
+    /* Ethernet header */
+    icmp_ether->ether_type = ntohs(ethertype_ip);
+
+    /* IP header */
+    icmp_ip->ip_hl = ip_header->ip_hl;
+    icmp_ip->ip_v = ip_header->ip_v;
+    icmp_ip->ip_tos = ip_header->ip_tos;
+    icmp_ip->ip_len = htons( sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
+    icmp_ip->ip_id = ip_header->ip_id;
+    icmp_ip->ip_off = ip_header->ip_off;
+    icmp_ip->ip_ttl = IP_TTL;
+    icmp_ip->ip_p = ip_protocol_icmp;
+    icmp_ip->ip_sum = 0;
+    icmp_ip->ip_dst = ip_header->ip_src;
+    memcpy(icmp_ether->ether_shost, mac_interface->addr, ETHER_ADDR_LEN);
+    icmp_ip->ip_sum = cksum((void*)icmp_ip, sizeof(sr_ip_hdr_t));
+
+    /* ICMP Header */
+    icmp_header->icmp_type = type;
+    icmp_header->icmp_code = code;
+    icmp_header->icmp_sum = 0;
+    icmp_header->unused = 0;
+    icmp_header->next_mtu = 0;
+    memcpy(icmp_header->data, ip_header, ICMP_DATA_SIZE);
+    icmp_header->icmp_sum = cksum((void*) icmp_header, sizeof(sr_icmp_t3_hdr_t));
+    uint length = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
+
+    struct sr_arpentry* entry = sr_arpcache_lookup(&sr->cache, icmp_ip->ip_dst);
+    if (entry) {
+        printf("ARP Cache Hit\n");
+        memcpy(icmp_ether->ether_dhost, entry->mac, ETHER_ADDR_LEN);
+        memcpy(icmp_ether->ether_shost, mac_interface->addr, ETHER_ADDR_LEN);
+        sr_send_packet(sr, (uint8_t*) icmp, length, mac);
+        free(entry);
+    } else {
+        printf("ARP Cache Miss\n");
+        memcpy(icmp_ether->ether_shost, mac_interface->addr, ETHER_ADDR_LEN);
+        sr_arpcache_queuereq(&sr->cache, icmp_ip->ip_dst, icmp, length, mac);
+    }
+    free(icmp);
+}
+
+void send_host_unreachable(struct sr_instance* sr, struct sr_arpreq* req) {
+    struct sr_packet* packet;
+    for (packet = req->packets; packet != NULL; packet=packet->next) {
+        sr_ip_hdr_t* ip_h = (sr_ip_hdr_t*) (packet->buf + sizeof(sr_ethernet_hdr_t));
+        char* iface = sr_lpm(sr, ip_h->ip_src);
+        send_icmp_t3(sr, packet->buf, 3, 1, packet->len, iface);
+    }
+}
+
+void send_arp_request(struct sr_instance* sr, struct sr_arpreq* req) {
+    uint8_t* arp_packet = (uint8_t*) malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t));
+    /* Ethernet header */
+    sr_ethernet_hdr_t* arp_ether = (sr_ethernet_hdr_t*) arp_packet;
+    struct sr_if* interface = sr_get_interface(sr, req->packets->iface);
+    memcpy(arp_ether->ether_shost, interface->addr, ETHER_ADDR_LEN);
+    memset(arp_ether->ether_dhost, 255, ETHER_ADDR_LEN);
+    arp_ether->ether_type = htons(ethertype_arp);
+
+    /* ARP header */
+    sr_arp_hdr_t* arp_header = (sr_arp_hdr_t*) (arp_packet + sizeof(sr_ethernet_hdr_t));
+    arp_header->ar_hrd = htons(arp_hrd_ethernet);
+    arp_header->ar_pro = htons(2048);
+    arp_header->ar_hln = ETHER_ADDR_LEN;
+    arp_header->ar_pln = 4;
+    arp_header->ar_op = htons(arp_op_request);
+    memcpy(arp_header->ar_sha, interface->addr, ETHER_ADDR_LEN);
+    arp_header->ar_sip = interface->ip;
+    memset(arp_header->ar_tha, 0, ETHER_ADDR_LEN);
+    arp_header->ar_tip = req->ip;
+
+    uint8_t size = sizeof(sr_arp_hdr_t) + sizeof(sr_ethernet_hdr_t);
+    print_hdrs(arp_packet, size);
+    int error = sr_send_packet(sr, arp_packet, size, interface->name);
+    if (!error) {
+        printf("ARP request packet sent\n");
+    } else {
+        printf("ARP request send failed\n");
+    }
+    free(arp_packet);
+} 
+
+
+void handle_arpreq(struct sr_instance* sr, struct sr_arpreq* req) {
+    time_t now = time(0);
+    if (difftime(now, req->sent) >= 1.0) {
+        if (req->times_sent >= 5){
+            printf("ICMP unreachable\n");
+            send_host_unreachable(sr, req);
+            sr_arpreq_destroy(&sr->cache, req);
+        } else {
+            printf("Sending new ARP request\n");
+            send_arp_request(sr, req);
+            req->sent = now;
+            req->times_sent++;
+        }
+    }
+}
 
 /* 
   This function gets called every second. For each request sent out, we keep
@@ -18,6 +144,11 @@
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
     /* Fill this in */
+    struct sr_arpcache* cache = &sr->cache;
+    struct sr_arpreq* req;
+    for (req = cache->requests; req != NULL; req = req->next) {
+        handle_arpreq(sr, req);
+    }
 }
 
 /* You should not need to touch the rest of this code. */
