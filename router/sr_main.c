@@ -153,6 +153,27 @@ int main(int argc, char **argv)
         }
     }
 
+    /* Setting NAT Variables*/
+    if (nat_active)
+    {
+        sr.nat_active = nat_active;
+    }
+    if (nat_icmp_timeout)
+    {
+        sr.nat_icmp_timeout = nat_icmp_timeout;
+    }
+    if (nat_tcp_established_timeout)
+    {
+        sr.nat_tcp_established_timeout = nat_tcp_established_timeout;
+    }
+    if (nat_tcp_transitory_timeout)
+    {
+        sr.nat_tcp_transitory_timeout = nat_tcp_transitory_timeout;
+    }
+
+    printf("%d, %d, %d, %d\n", sr.nat_active, sr.nat_icmp_timeout,
+           sr.nat_tcp_established_timeout, sr.nat_tcp_transitory_timeout);
+
     Debug("Client %s connecting to Server %s:%d\n", sr.user, server, port);
     if(template)
         Debug("Requesting topology template %s\n", template);
@@ -173,23 +194,6 @@ int main(int argc, char **argv)
       /* Read from specified routing table */
       sr_load_rt_wrap(&sr, rtable);
     }
-
-    /* Setting NAT Variables*/
-    if (nat_active) {
-        sr.nat_active = nat_active;
-    }
-    if (nat_icmp_timeout) {
-        sr.nat_icmp_timeout = nat_icmp_timeout;
-    }
-    if (nat_tcp_established_timeout) {
-        sr.nat_tcp_established_timeout = nat_tcp_established_timeout;
-    }
-    if (nat_tcp_transitory_timeout) {
-        sr.nat_tcp_transitory_timeout = nat_tcp_transitory_timeout;
-    }
-
-    printf("%d, %d, %d, %d", sr.nat_active, sr.nat_icmp_timeout, 
-                            sr.nat_tcp_established_timeout, sr.nat_tcp_transitory_timeout);
 
     /* call router init (for arp subsystem etc.) */
     sr_init(&sr);
