@@ -38,6 +38,9 @@ struct sr_nat {
   pthread_mutexattr_t attr;
   pthread_attr_t thread_attr;
   pthread_t thread;
+  int icmp_timeout;
+  int tcp_established_timeout;
+  int tcp_transitory_timeout;
 };
 
 

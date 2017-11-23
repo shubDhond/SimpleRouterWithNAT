@@ -32,6 +32,7 @@
 #include "sr_dumper.h"
 #include "sr_router.h"
 #include "sr_rt.h"
+#include "sr_nat.h"
 
 extern char* optarg;
 
@@ -66,10 +67,15 @@ int main(int argc, char **argv)
     unsigned int topo = DEFAULT_TOPO;
     char *logfile = 0;
     struct sr_instance sr;
+    /* NAT variable instantiations */
+    int nat_active;
+    int nat_icmp_timeout;
+    int nat_tcp_established_timeout;
+    int nat_tcp_transitory_timeout;
 
     printf("Using %s\n", VERSION_INFO);
 
-    while ((c = getopt(argc, argv, "hs:v:p:u:t:r:l:T:")) != EOF)
+    while ((c = getopt(argc, argv, "hs:v:p:u:t:r:l:T:n:I:E:R")) != EOF)
     {
         switch (c)
         {
@@ -100,6 +106,18 @@ int main(int argc, char **argv)
                 break;
             case 'T':
                 template = optarg;
+                break;
+            case 'n':
+                nat_active = 1;
+                break;
+            case 'I':
+                nat_icmp_timeout = atoi((char *) optarg);
+                break;
+            case 'E':
+                nat_tcp_established_timeout = atoi((char *) optarg);
+                break;
+            case 'R':
+                nat_tcp_transitory_timeout = atoi((char *) optarg);
                 break;
         } /* switch */
     } /* -- while -- */
@@ -155,6 +173,23 @@ int main(int argc, char **argv)
       /* Read from specified routing table */
       sr_load_rt_wrap(&sr, rtable);
     }
+
+    /* Setting NAT Variables*/
+    if (nat_active) {
+        sr.nat_active = nat_active;
+    }
+    if (nat_icmp_timeout) {
+        sr.nat_icmp_timeout = nat_icmp_timeout;
+    }
+    if (nat_tcp_established_timeout) {
+        sr.nat_tcp_established_timeout = nat_tcp_established_timeout;
+    }
+    if (nat_tcp_transitory_timeout) {
+        sr.nat_tcp_transitory_timeout = nat_tcp_transitory_timeout;
+    }
+
+    printf("%d, %d, %d, %d", sr.nat_active, sr.nat_icmp_timeout, 
+                            sr.nat_tcp_established_timeout, sr.nat_tcp_transitory_timeout);
 
     /* call router init (for arp subsystem etc.) */
     sr_init(&sr);
@@ -249,6 +284,11 @@ static void sr_init_instance(struct sr_instance* sr)
     sr->if_list = 0;
     sr->routing_table = 0;
     sr->logfile = 0;
+    sr->nat_active = 0;
+    sr->nat_icmp_timeout = 60;
+    sr->nat_tcp_established_timeout = 7440;
+    sr->nat_tcp_transitory_timeout = 300;
+    sr->nat = (struct sr_nat*)malloc(sizeof(struct sr_nat));
 } /* -- sr_init_instance -- */
 
 /*-----------------------------------------------------------------------------
