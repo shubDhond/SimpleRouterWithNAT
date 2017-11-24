@@ -202,7 +202,7 @@ int nat_received_icmp(struct sr_instance* sr, uint8_t* packet, char* iface, uint
 
   char *matched_iface = sr_lpm(sr, ip->ip_dst);
 
-  if ((strcmp(iface, "eth1") == 0) && (strcmp(matched_iface, "eth2") == 0)) {
+  if (matched_iface && (strcmp(iface, "eth1") == 0) && (strcmp(matched_iface, "eth2") == 0)) {
     printf("ICMP Internal -> External\n");
     
     struct sr_nat_mapping* mapping = sr_nat_lookup_internal(sr->nat, ip->ip_src, icmp->identifier, nat_mapping_icmp);
@@ -218,7 +218,7 @@ int nat_received_icmp(struct sr_instance* sr, uint8_t* packet, char* iface, uint
 
       return 0;
     } else {
-      printf("ICMP Internal Mapping Not Found");
+      printf("ICMP Internal Mapping Not Found\n");
       struct sr_nat_mapping *new_mapping = sr_nat_insert_mapping(sr->nat, ip->ip_src, icmp->identifier, nat_mapping_icmp);
       ip->ip_src = sr->nat->external_ip;
       icmp->identifier = new_mapping->aux_ext;
@@ -231,7 +231,7 @@ int nat_received_icmp(struct sr_instance* sr, uint8_t* packet, char* iface, uint
       return 0;
     }
   } else if(strcmp(iface, "eth2") == 0) {
-    printf("ICMP External -> Internal");
+    printf("ICMP External -> Internal\n");
     struct sr_nat_mapping* mapping = sr_nat_lookup_external(sr->nat, icmp->identifier, nat_mapping_icmp);
     if (mapping) {
       ip->ip_dst = mapping->ip_int;
@@ -337,12 +337,12 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
     }
   }
 
-  if ((strcmp(iface, "eth1") == 0) && (strcmp(matched_dest, "eth2") == 0)) {
-    printf("TCP Internal -> External");
+  if (matched_dest && (strcmp(iface, "eth1") == 0) && (strcmp(matched_dest, "eth2") == 0)) {
+    printf("TCP Internal -> External\n");
     struct sr_nat_mapping *mapping = sr_nat_lookup_internal(sr->nat, ip->ip_src, ntohs(tcp->port_src), nat_mapping_tcp);
 
     if (mapping) {
-      printf("TCP Internal Mapping Found");
+      printf("TCP Internal Mapping Found\n");
       ip->ip_src = sr->nat->external_ip;
       tcp->port_src = htons(mapping->aux_ext);
 
@@ -367,7 +367,7 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
       return 0;
     }
   } else if(strcmp(iface, "eth2") == 0) {
-    printf("TCP External -> Internal");
+    printf("TCP External -> Internal\n");
     struct sr_nat_mapping *mapping = sr_nat_lookup_external(sr->nat, ntohs(tcp->port_dst), nat_mapping_tcp);
 
     if (mapping) {
