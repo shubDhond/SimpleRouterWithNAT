@@ -18,6 +18,15 @@ struct sr_nat_connection {
   struct sr_nat_connection *next;
 };
 
+struct waiting_unsol
+{
+  uint8_t *icmp_packet;
+  int packet_len;
+  int status;
+  time_t time_created;
+  struct waiting_unsol *next;
+};
+
 struct sr_nat_mapping {
   sr_nat_mapping_type type;
   uint32_t ip_int; /* internal ip addr */
@@ -32,15 +41,19 @@ struct sr_nat_mapping {
 struct sr_nat {
   /* add any fields here */
   struct sr_nat_mapping *mappings;
+  struct waiting_unsol *waiting_unsols;
+  int icmp_timeout;
+  int tcp_established_timeout;
+  int tcp_transitory_timeout;
+  char external_interface[4];
+  int external_port_count;
+  uint32_t external_ip;
 
   /* threading */
   pthread_mutex_t lock;
   pthread_mutexattr_t attr;
   pthread_attr_t thread_attr;
   pthread_t thread;
-  int icmp_timeout;
-  int tcp_established_timeout;
-  int tcp_transitory_timeout;
 };
 
 
@@ -62,6 +75,5 @@ struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
    You must free the returned structure if it is not NULL. */
 struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   uint32_t ip_int, uint16_t aux_int, sr_nat_mapping_type type );
-
 
 #endif

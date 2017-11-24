@@ -49,7 +49,9 @@ void sr_init(struct sr_instance* sr)
     pthread_create(&thread, &(sr->attr), sr_arpcache_timeout, sr);
     
     /* Add initialization code here! */
-
+    if (sr->nat_active) {
+      sr_nat_init(sr->nat);
+    }
 } /* -- sr_init -- */
 
 struct sr_if* sr_get_interface_by_ip(struct sr_instance* sr, uint32_t ip) {
@@ -124,6 +126,27 @@ void received_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, cha
   if (ip_header->ip_v != 4) {
     printf("Not IPV4\n");
     return;
+  }
+
+  if (sr->nat_active) {
+    if (ip_header->ip_p == 6)
+    {
+      int success = nat_received_tcp(sr, packet, interface, len);
+      if (success == -1)
+      {
+        printf("NAT handling TCP failed\n");
+        return;
+      }
+    }
+    else if (ip_header->ip_p == ip_protocol_icmp)
+    {
+      int success = nat_received_icmp(sr, packet, interface, len);
+      if (success == -1)
+      {
+        printf("NAT handling ICMP failed\n");
+        return;
+      }
+    }
   }
 
   /* Checksum validation */
@@ -304,6 +327,11 @@ void sr_handlepacket(struct sr_instance* sr,
   assert(interface);
 
   printf("*** -> Received packet of length %d \n",len);
+
+  if (sr->nat_active) {
+    struct sr_if *external_iface = sr_get_interface(sr, "eth2");
+    sr->nat->external_ip = external_iface->ip;
+  }
 
   if (len < sizeof(sr_ethernet_hdr_t)) {
     return;

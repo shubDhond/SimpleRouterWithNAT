@@ -148,7 +148,43 @@ struct sr_ethernet_hdr
 } __attribute__ ((packed)) ;
 typedef struct sr_ethernet_hdr sr_ethernet_hdr_t;
 
+struct sr_icmp_t8_hdr
+{
+  uint8_t icmp_type;
+  uint8_t icmp_code;
+  uint16_t icmp_sum;
+  uint16_t identifier;
+  uint16_t sequence;
+  uint8_t data[ICMP_DATA_SIZE];
+} __attribute__((packed));
+typedef struct sr_icmp_t8_hdr sr_icmp_t8_hdr_t;
 
+struct sr_tcp_hdr
+{
+  uint16_t port_src;
+  uint16_t port_dst;
+  uint32_t seq_number;
+  uint32_t ack_number;
+
+  uint8_t data_offset;
+  uint8_t control;
+
+  uint16_t window_size;
+  uint16_t checksum;
+  uint16_t urgent_p;
+
+} __attribute__((packed));
+typedef struct sr_tcp_hdr sr_tcp_hdr_t;
+
+struct sr_tcp_pseudo_hdr
+{
+  uint32_t ip_src;
+  uint32_t ip_dst;
+  uint8_t reserved;
+  uint8_t ip_p;
+  uint16_t len;
+} __attribute__((packed));
+typedef struct sr_tcp_pseudo_hdr sr_tcp_pseudo_hdr_t;
 
 enum sr_ip_protocol {
   ip_protocol_icmp = 0x0001,

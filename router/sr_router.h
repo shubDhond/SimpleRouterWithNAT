@@ -15,6 +15,7 @@
 
 #include "sr_protocol.h"
 #include "sr_arpcache.h"
+#include "sr_nat.h"
 
 /* we dont like this debug , but what to do for varargs ? */
 #ifdef _DEBUG_
@@ -81,4 +82,7 @@ void sr_print_if_list(struct sr_instance* );
 
 char* sr_lpm(struct sr_instance* sr, uint32_t ip);
 void send_icmp_t3(struct sr_instance* sr, uint8_t* packet, int type, int code, uint len, char* iface);
+
+int nat_received_icmp(struct sr_instance *sr, uint8_t *packet, char *iface, uint length);
+int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint length);
 #endif /* SR_ROUTER_H */
