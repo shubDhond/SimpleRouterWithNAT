@@ -196,6 +196,7 @@ int is_unsol_syn(uint8_t *packet) {
 
 int nat_received_icmp(struct sr_instance* sr, uint8_t* packet, char* iface, uint length)
 {
+  printf("NAT ICMP\n");
   sr_ip_hdr_t *ip = (sr_ip_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
   sr_icmp_t8_hdr_t *icmp = (sr_icmp_t8_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 
@@ -321,6 +322,7 @@ void send_icmp_unsol(struct sr_instance *sr, uint8_t *packet, int type, int code
 
 int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint length)
 {
+  printf("NAT TCP");
   sr_ip_hdr_t *ip = (sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
   sr_tcp_hdr_t *tcp = (sr_tcp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 
