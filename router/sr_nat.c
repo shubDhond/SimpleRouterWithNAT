@@ -212,7 +212,7 @@ int nat_received_icmp(struct sr_instance* sr, uint8_t* packet, char* iface, uint
     
     struct sr_nat_mapping* mapping = sr_nat_lookup_internal(sr->nat, ip->ip_src, icmp->identifier, nat_mapping_icmp);
     if (mapping) {
-      printf("ICMP Internal Mapping Found");
+      printf("ICMP Internal Mapping Found\n");
       ip->ip_src = sr->nat->external_ip;
       icmp->identifier = mapping->aux_ext;
       icmp->icmp_sum = 0;
@@ -323,6 +323,34 @@ void send_icmp_unsol(struct sr_instance *sr, uint8_t *packet, int type, int code
   memcpy(new_ethernet->ether_dhost, ethernet->ether_shost, ETHER_ADDR_LEN);
 
   sr_send_packet(sr, (uint8_t*)new_packet, len, matched_name);
+}
+
+void print_mapping(struct sr_nat_mapping *mapping)
+{
+  printf("Printing Mappings:\n");
+
+  if (mapping == NULL)
+  {
+    printf("null\n");
+    return;
+  }
+  if (mapping->next == NULL)
+  {
+    printf("ip_int: %d\n", mapping->ip_int);
+    printf("ip_ext: %d\n", mapping->ip_ext);
+    printf("aux_int: %d\n", mapping->aux_int);
+    printf("aux_ext: %d\n", mapping->aux_ext);
+    return;
+  }
+
+  while (mapping->next != NULL)
+  {
+    printf("ip_int: %d\n", mapping->ip_int);
+    printf("ip_ext: %d\n", mapping->ip_ext);
+    printf("aux_int: %d\n", mapping->aux_int);
+    printf("aux_ext: %d\n", mapping->aux_ext);
+    mapping = mapping->next;
+  }
 }
 
 int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint length)
