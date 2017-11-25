@@ -160,8 +160,9 @@ void received_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, cha
   ip_header->ip_sum = received_sum;
   
   struct sr_if* matched_if = sr_get_interface_by_ip(sr, ip_header->ip_dst);
-
+  printf("Made it here1\n");
   if (matched_if != NULL) {
+    printf("Made it here2\n");
     if (ip_header->ip_p != ip_protocol_icmp) {
       printf("Sending ICMP Port Unreachable\n");
       send_icmp_t3(sr, packet, 3, 3 , len, interface);

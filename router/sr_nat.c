@@ -12,6 +12,7 @@
 #include "sr_arpcache.h"
 #include "sr_utils.h"
 
+void print_mapping(struct sr_nat_mapping* mapping);
 int sr_nat_init(struct sr_nat *nat) { /* Initializes the nat */
 
   assert(nat);
@@ -86,6 +87,7 @@ struct sr_nat_mapping *sr_nat_lookup_external(struct sr_nat *nat,
   while (mapping) 
   {
     if ((mapping->type == type) && (mapping->aux_ext == aux_ext)) {
+      printf("Making Copy\n");
       copy = (struct sr_nat_mapping *)malloc(sizeof(struct sr_nat_mapping));
       copy->type = mapping->type;
       copy->ip_int = mapping->ip_int;
@@ -96,6 +98,8 @@ struct sr_nat_mapping *sr_nat_lookup_external(struct sr_nat *nat,
       copy->conns = mapping->conns;
       copy->next = mapping->next;
       pthread_mutex_unlock(&(nat->lock));
+
+      printf("Copy Made\n");
       return copy;
     }
     mapping = mapping->next;
@@ -156,6 +160,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   mapping->ip_int = ip_int;
   mapping->aux_int = aux_int;
   mapping->ip_ext = nat->external_ip;
+  printf("External Port Count: %d\n",nat->external_port_count);
   if (nat->external_port_count == 65000) {
     mapping->aux_ext = 1025;
     nat->external_port_count = 1026;
@@ -170,13 +175,12 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
     nat->mappings = mapping;
   } else {
     printf("A\n");
-    while (curr->next) {
+    while (curr->next != NULL) {
       curr = curr->next;
     }
     curr->next = mapping;
     printf("B\n");
   }
-
   pthread_mutex_unlock(&(nat->lock));
   return mapping;
 }
@@ -334,21 +338,21 @@ void print_mapping(struct sr_nat_mapping *mapping)
     printf("null\n");
     return;
   }
-  if (mapping->next == NULL)
-  {
-    printf("ip_int: %d\n", mapping->ip_int);
-    printf("ip_ext: %d\n", mapping->ip_ext);
-    printf("aux_int: %d\n", mapping->aux_int);
-    printf("aux_ext: %d\n", mapping->aux_ext);
-    return;
-  }
 
-  while (mapping->next != NULL)
+  while (mapping != NULL)
   {
     printf("ip_int: %d\n", mapping->ip_int);
     printf("ip_ext: %d\n", mapping->ip_ext);
     printf("aux_int: %d\n", mapping->aux_int);
     printf("aux_ext: %d\n", mapping->aux_ext);
+    if (mapping->next == NULL) 
+    {
+      printf("next: NULL\n");
+    }
+    else
+    {
+      printf("next: %p\n", (void *)mapping->next);
+    }
     mapping = mapping->next;
   }
 }
@@ -391,14 +395,17 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
     } else {
       struct sr_nat_mapping *new_mapping = sr_nat_insert_mapping(sr->nat, ip->ip_src, ntohs(tcp->port_src), nat_mapping_tcp);
       ip->ip_src = sr->nat->external_ip;
-
+      
+      print_mapping(sr->nat->mappings);
       tcp->port_src = htons(new_mapping->aux_ext);
       tcp->checksum = 0;
+      printf("Before TCP cksum\n");
       tcp->checksum = tcp_cksum(packet, length - sizeof(sr_ip_hdr_t) - sizeof(sr_ethernet_hdr_t));
+      printf("After TCP cksum\n");      
 
       ip->ip_sum = 0;
       ip->ip_sum = cksum((void *)ip, sizeof(sr_ip_hdr_t));
-
+      printf("Returning TCP\n");
       return 0;
     }
   } else if(strcmp(iface, "eth2") == 0) {
