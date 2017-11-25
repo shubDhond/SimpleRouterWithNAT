@@ -49,7 +49,7 @@ int sr_nat_destroy(struct sr_nat *nat) {  /* Destroys the nat (free memory) */
   pthread_mutex_lock(&(nat->lock));
 
   /* free nat memory here */
-  free(nat);
+  /*free(nat);*/
 
   pthread_kill(nat->thread, SIGKILL);
   return pthread_mutex_destroy(&(nat->lock)) &&
@@ -76,6 +76,7 @@ void *sr_nat_timeout(void *nat_ptr) {  /* Periodic Timout handling */
    You must free the returned structure if it is not NULL. */
 struct sr_nat_mapping *sr_nat_lookup_external(struct sr_nat *nat,
     uint16_t aux_ext, sr_nat_mapping_type type ) {
+  printf("NAT Lookup External\n");
 
   pthread_mutex_lock(&(nat->lock));
 
@@ -109,6 +110,7 @@ struct sr_nat_mapping *sr_nat_lookup_external(struct sr_nat *nat,
 struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
   uint32_t ip_int, uint16_t aux_int, sr_nat_mapping_type type ) {
 
+  printf("NAT Lookup Internal\n");
   pthread_mutex_lock(&(nat->lock));
 
   /* handle lookup here, malloc and assign to copy. */
@@ -145,6 +147,7 @@ struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
 struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   uint32_t ip_int, uint16_t aux_int, sr_nat_mapping_type type ) {
 
+  printf("NAT Insert Mapping\n");
   pthread_mutex_lock(&(nat->lock));
 
   /* handle insert here, create a mapping, and then return a copy of it */
@@ -153,7 +156,7 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   mapping->ip_int = ip_int;
   mapping->aux_int = aux_int;
   mapping->ip_ext = nat->external_ip;
-  if (nat->external_port_count >= 65000) {
+  if (nat->external_port_count == 65000) {
     mapping->aux_ext = 1025;
     nat->external_port_count = 1026;
   } else {
@@ -166,10 +169,12 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   if (!curr) {
     nat->mappings = mapping;
   } else {
+    printf("A\n");
     while (curr->next) {
       curr = curr->next;
     }
     curr->next = mapping;
+    printf("B\n");
   }
 
   pthread_mutex_unlock(&(nat->lock));
@@ -344,7 +349,9 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
     if (mapping) {
       printf("TCP Internal Mapping Found\n");
       ip->ip_src = sr->nat->external_ip;
+      printf("A\n");
       tcp->port_src = htons(mapping->aux_ext);
+      printf("B\n");
 
       tcp->checksum = 0;
       tcp->checksum = tcp_cksum(packet, length - sizeof(sr_ip_hdr_t) - sizeof(sr_ethernet_hdr_t));
@@ -382,7 +389,7 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
 
       return 0;
     } else {
-      pthread_mutex_lock(&sr->nat->lock);
+     /* pthread_mutex_lock(&sr->nat->lock);
 
       if (is_unsol_syn(packet))
       {
@@ -409,7 +416,7 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
         }
       }
       pthread_mutex_unlock(&sr->nat->lock);
-      return 1;
+      return 1;*/
     }
   }
   return 0;

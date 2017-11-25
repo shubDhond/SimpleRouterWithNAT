@@ -46,7 +46,7 @@ struct sr_nat {
   int tcp_established_timeout;
   int tcp_transitory_timeout;
   char external_interface[4];
-  int external_port_count;
+  uint16_t external_port_count;
   uint32_t external_ip;
 
   /* threading */
