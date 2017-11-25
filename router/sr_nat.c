@@ -124,7 +124,7 @@ struct sr_nat_mapping *sr_nat_lookup_internal(struct sr_nat *nat,
   {
     if ((mapping->type == type) 
         && (mapping->aux_int == aux_int) 
-        && (mapping->ip_int = ip_int))
+        && (mapping->ip_int == ip_int))
     {
       copy = (struct sr_nat_mapping *)malloc(sizeof(struct sr_nat_mapping));
       copy->type = mapping->type;
@@ -182,6 +182,9 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
     printf("B\n");
   }
   pthread_mutex_unlock(&(nat->lock));
+  printf("X\n"); 
+  int* b = (int*) malloc(sizeof(int));
+  free(b);
   return mapping;
 }
 
@@ -390,8 +393,6 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
 
       ip->ip_sum = 0;
       ip->ip_sum = cksum((void *)ip, sizeof(sr_ip_hdr_t));
-      int* b = (int*) malloc(sizeof(int));
-      free(b);
       return 0;
     } else {
       struct sr_nat_mapping *new_mapping = sr_nat_insert_mapping(sr->nat, ip->ip_src, ntohs(tcp->port_src), nat_mapping_tcp);
