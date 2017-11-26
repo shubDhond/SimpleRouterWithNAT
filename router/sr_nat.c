@@ -216,7 +216,7 @@ int is_syn_ack(uint8_t *packet) {
   
   print_binary(control);
   printf("FIN:%d\nSYN:%d\nPSH:%d\nACK:%d\n",fin_set,syn_set,psh_set,ack_set);
-  if (syn_set && ack_set && !fin_set && !psh_set) {
+  if (syn_set && !ack_set && !fin_set && !psh_set) {
     return 1;
   }
 
