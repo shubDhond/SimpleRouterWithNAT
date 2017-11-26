@@ -357,9 +357,9 @@ void print_mapping(struct sr_nat_mapping *mapping)
   }
 }
 
-int nat_received_tcp(struct sr_instance *sr, uint8_t *received_packet, char *iface_from, uint length)
+int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint length)
 {
-  /*printf("NAT TCP\n");
+  printf("NAT TCP\n");
   sr_ip_hdr_t *ip = (sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
   sr_tcp_hdr_t *tcp = (sr_tcp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 
@@ -421,9 +421,10 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *received_packet, char *ifa
 
       ip->ip_sum = 0;
       ip->ip_sum = cksum((void *)ip, sizeof(sr_ip_hdr_t));
+      printf("Returned TCP\n");
       return 0;
     } else {
-      pthread_mutex_lock(&sr->nat->lock);
+     /* pthread_mutex_lock(&sr->nat->lock);
 
       if (is_unsol_syn(packet))
       {
@@ -451,147 +452,7 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *received_packet, char *ifa
       }
       pthread_mutex_unlock(&sr->nat->lock);
       return 1;*/
-      
-    /*endpoint independent mapping":
-     two successive TCP connections coming from the same internal endpoint are mapped to the same public endpoint.*/
-
-    print_mapping(sr->nat->mappings);
-    /* get received ethernet/ip/icmp header */
-    sr_ethernet_hdr_t *received_ether = (sr_ethernet_hdr_t *)received_packet;
-    sr_ip_hdr_t *received_ip = (sr_ip_hdr_t *)(received_packet + sizeof(sr_ethernet_hdr_t));
-    sr_tcp_hdr_t *received_tcp = (sr_tcp_hdr_t *)(received_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
-
-    char *matched_interface = sr_lpm(sr, received_ip->ip_dst);
-    char *matched_interface_2 = sr_lpm(sr, received_ip->ip_src);
-
-    printf("received ip is %d\n", received_ip->ip_dst);
-    printf("matchedINTERFACE is %s\n\n", matched_interface);
-
-    printf("received ip2 is %d\n", received_ip->ip_src);
-    printf("matchedINTERFACE2 is %s\n", matched_interface_2);
-
-    if (is_unsol_syn(received_packet) == 1)
-    {
-      if (ntohs(received_tcp->port_dst) <= 1024)
-      {
-        send_icmp_unsol(sr, received_packet, 3, 3, length, iface_from);
-        return 1;
-      }
     }
-
-    if ((strcmp(iface_from, "eth1") == 0) && ((strcmp(matched_interface, "eth1") == 0)))
-    {
-      if (is_unsol_syn(received_packet) == 1)
-      {
-        send_icmp_unsol(sr, received_packet, 3, 3, length, iface_from);
-        return 1;
-      }
-    }
-
-    if ((strcmp(iface_from, "eth1") == 0) && ((strcmp(matched_interface, "eth2") == 0)))
-    {
-      printf("tcp commmming from internal to external");
-      struct sr_nat_mapping *find_mapping = sr_nat_lookup_internal(sr->nat, received_ip->ip_src, ntohs(received_tcp->port_src), nat_mapping_tcp);
-
-      if (find_mapping == NULL)
-      {
-        /* insert*/
-        printf("No mapping found making a ne one\n");
-        struct sr_nat_mapping *new_mapping = sr_nat_insert_mapping(sr->nat, received_ip->ip_src, ntohs(received_tcp->port_src), nat_mapping_tcp);
-        received_ip->ip_src = sr->nat->external_ip;
-        if (new_mapping == NULL)
-        {
-          printf("new mapping is null \n");
-        }
-
-        received_tcp->port_src = htons(new_mapping->aux_ext);
-        received_tcp->checksum = 0;
-        received_tcp->checksum = tcp_cksum(received_packet, length - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
-        received_ip->ip_sum = 0;
-        received_ip->ip_sum = cksum((void *)received_ip, 20);
-
-        return 0;
-      }
-      else
-      {
-        printf("TCP FOUND IN MAPPINGS\n");
-        received_ip->ip_src = sr->nat->external_ip;
-        received_tcp->port_src = htons(find_mapping->aux_ext);
-        received_tcp->checksum = 0;
-        received_tcp->checksum = tcp_cksum(received_packet, length - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
-
-        received_ip->ip_sum = 0;
-        received_ip->ip_sum = cksum((void *)received_ip, 20);
-        return 0;
-      }
-    }
-    if (strcmp(iface_from, "eth2") == 0)
-    {
-      printf("tcp commmming from external to internal\n");
-      /*
-        int if_UNS_SYN = get_unsolicated_SYN(received_packet);
-        if (if_UNS_SYN == 1){
-            printf("unsolicated_SYN\n");
-            return 0;
-        }*/
-      struct sr_nat_mapping *find_mapping = sr_nat_lookup_external(sr->nat, ntohs(received_tcp->port_dst), nat_mapping_tcp);
-
-      if (find_mapping != NULL)
-      {
-        printf("TCP FOUND IN MAPPINGS\n");
-        received_ip->ip_dst = find_mapping->ip_int;
-        received_tcp->port_dst = htons(find_mapping->aux_int);
-
-        received_tcp->checksum = 0;
-        received_tcp->checksum = tcp_cksum(received_packet, length - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
-
-        received_ip->ip_sum = 0;
-        received_ip->ip_sum = cksum((void *)received_ip, 20);
-        return 0;
-      }
-      else
-      {
-        /*
-        pthread_mutex_lock(&sr->nat->lock);
-
-        if (get_unsolicated_SYN(received_packet) == 1)
-        {
-          printf("handle SYN!\n");
-
-          pthread_mutex_lock(&sr->nat->lock);
-          struct sr_nat_mapping *find_mapping_again = sr_nat_lookup_external(sr->nat, ntohs(received_tcp->port_dst), nat_mapping_tcp);
-          pthread_mutex_unlock(&sr->nat->lock);
-
-          if (find_mapping_again == NULL)
-          {
-         
-
-            if ((int)received_tcp->port_dst == 22)
-            {
-         
-              send_icmp_t3(sr, received_packet, 3, 3, iface_from, length);
-            }
-
-            if ((int)received_tcp->port_dst >= 1024)
-            {
-              sleep(6);
-              send_icmp_unsol(sr, received_packet, 3, 3, iface_from, length);
-            }
-
-            else
-            {
-              send_icmp_t3(sr, received_packet, 3, 3, iface_from, length);
-            }
-          }
-          else
-          {
-            return 1;
-          }
-        }
-        pthread_mutex_unlock(&sr->nat->lock);
-        return 1;
-        */
-      }
-    }
+  }
   return 0;
 }
