@@ -191,9 +191,9 @@ int is_unsol_syn(uint8_t *packet) {
                                             + sizeof(sr_ip_hdr_t));
   uint8_t control = tcp_hdr->control;
   int fin_set = (control & 1) != 0 ? 1 : 0;
-  int syn_set = (control & 1<<1) != 0 ? 1 : 0;
-  int psh_set = (control & 1 << 3) != 0 ? 1 : 0;
-  int ack_set = (control & 1 << 4) != 0 ? 1 : 0;
+  int syn_set = (control & (1<<1)) != 0 ? 1 : 0;
+  int psh_set = (control & (1<<3)) != 0 ? 1 : 0;
+  int ack_set = (control & (1<<4)) != 0 ? 1 : 0;
 
   printf("FIN:%d\nSYN:%d\nPSH:%d\nACK:%d\n",fin_set,syn_set,psh_set,ack_set);
   if (syn_set && ack_set && !fin_set && !psh_set) {
