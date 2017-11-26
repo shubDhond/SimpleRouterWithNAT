@@ -119,7 +119,7 @@ struct sr_tcp_hdr
   uint32_t ack;
 
   uint8_t data_offset;
-  uint8_t flags;
+  uint8_t control;
 
   uint16_t window_size;
   uint16_t checksum;
