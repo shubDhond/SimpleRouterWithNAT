@@ -32,12 +32,14 @@ struct sr_nat_mapping {
 
 struct waiting_unsol
 {
-  uint8_t *icmp_packet;
+  struct sr_instance* sr;
+  uint8_t *packet;
   int packet_len;
-  int status;
-  time_t time_created;
+  char iface[4];
+  uint8_t waited;
   struct waiting_unsol *next;
 };
+typedef struct waiting_unsol waiting_unsol_t;
 
 struct sr_nat {
   /* add any fields here */

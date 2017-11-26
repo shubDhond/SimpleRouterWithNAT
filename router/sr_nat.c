@@ -12,6 +12,7 @@
 #include "sr_utils.h"
 
 void print_mapping(struct sr_nat_mapping* mapping);
+void send_icmp_unsol(struct sr_instance *sr, uint8_t *packet, int type, int code, uint length, char *iface);
 int sr_nat_init(struct sr_nat *nat) { /* Initializes the nat */
 
   assert(nat);
@@ -55,6 +56,13 @@ int sr_nat_destroy(struct sr_nat *nat) {  /* Destroys the nat (free memory) */
     mapping = mapping->next;
     free(temp);
   }
+
+  waiting_unsol_t* curr = nat->waiting_unsol;
+  while (curr) {
+    waiting_unsol_t* temp = curr;
+    curr = curr->next;
+    free(temp);
+  }
   free(nat);
 
   pthread_kill(nat->thread, SIGKILL);
@@ -72,6 +80,14 @@ void *sr_nat_timeout(void *nat_ptr) {  /* Periodic Timout handling */
     time_t curtime = time(NULL);
 
     /* handle periodic tasks here */
+    waiting_unsol_t* curr = nat->waiting_unsol;
+    while (curr) {
+      curr->waited++;
+      if (curr->waited == 6) {
+        send_icmp_unsol(curr->sr, curr->packet, 3, 3, curr->packet_len, curr->iface);
+      }
+      curr = curr->next;
+    }
 
     pthread_mutex_unlock(&(nat->lock));
   }
@@ -385,14 +401,6 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
   char* matched_dest = sr_lpm(sr, ip->ip_dst);
   int is_unsolicited = is_syn_ack(packet);
 
-  if (is_unsolicited) {
-    if (ntohs(tcp->port_dst) <= 1024 || 
-      ((strcmp(iface, "eth1") == 0) && (strcmp(matched_dest, "eth1") == 0))) {
-      send_icmp_unsol(sr, packet, 3, 3, length, iface);
-      return -1;
-    }
-  }
-
   if (matched_dest && (strcmp(iface, "eth1") == 0) && (strcmp(matched_dest, "eth2") == 0)) {
     printf("TCP Internal -> External\n");
     struct sr_nat_mapping *mapping = sr_nat_lookup_internal(sr->nat, ip->ip_src, ntohs(tcp->port_src), nat_mapping_tcp);
@@ -439,34 +447,37 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
       printf("Returned TCP\n");
       return 0;
     } else {
-     pthread_mutex_lock(&sr->nat->lock);
+      pthread_mutex_lock(&sr->nat->lock);
 
       if (is_syn_ack(packet))
       {
         pthread_mutex_lock(&sr->nat->lock);
         struct sr_nat_mapping *mapping_check = sr_nat_lookup_external(sr->nat, ntohs(tcp->port_dst), nat_mapping_tcp);
         pthread_mutex_unlock(&sr->nat->lock);
+        if (!mapping_check) {
+          waiting_unsol_t *new_unsol = (waiting_unsol_t *)malloc(sizeof(waiting_unsol_t));
+          new_unsol->sr = sr;
+          new_unsol->packet = packet;
+          new_unsol->packet_len = length;
+          memcpy(new_unsol->iface, iface, 4);
+          new_unsol->waited = 0;
+          new_unsol->next = NULL;
 
-        if (!mapping_check)
-        {
-          if ((int)tcp->port_dst >= 1024)
-          {
-            sleep(6);
-            send_icmp_unsol(sr, packet, 3, 3, length, iface);
+          waiting_unsol_t* curr = sr->nat->waiting_unsol;
+          if (!curr) {
+            sr->nat->waiting_unsol = new_unsol;
+          } else {
+            while (curr->next) {
+              curr = curr->next;
+            }
+            curr->next = new_unsol;
           }
-          else
-          {
-            send_icmp_t3(sr, packet, 3, 3, length, iface);
-          }
-        }
-        else
-        {
-          pthread_mutex_unlock(&sr->nat->lock);
-          return 1;
+          return -1;
+        } else {
+          return 0;
         }
       }
       pthread_mutex_unlock(&sr->nat->lock);
-      return -1;
     }
   }
   return 0;
