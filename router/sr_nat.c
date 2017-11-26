@@ -284,20 +284,20 @@ uint16_t tcp_cksum(uint8_t *packet, uint tcp_length)
   sr_ip_hdr_t *ip_header = (sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
   sr_tcp_hdr_t *tcp_hdr = (sr_tcp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 
-  unsigned int total_length = tcp_length + sizeof(sr_tcp_pesudo_hdr_t);
+  unsigned int total_length = tcp_length + sizeof(sr_tcp_pseudo_hdr_t);
 
-  uint8_t *pesudo = (uint8_t *)malloc(total_length);
-  sr_tcp_pesudo_hdr_t *pesudo_hdr = (sr_tcp_pesudo_hdr_t *)pesudo;
+  uint8_t *pseudo = (uint8_t *)malloc(total_length);
+  sr_tcp_pseudo_hdr_t *pseudo_hdr = (sr_tcp_pseudo_hdr_t *)pseudo;
 
-  pesudo_hdr->ip_src = ip_header->ip_src;
-  pesudo_hdr->ip_dst = ip_header->ip_dst;
-  pesudo_hdr->reserved = 0;
-  pesudo_hdr->ip_p = ip_header->ip_p;
-  pesudo_hdr->len = htons(tcp_length);
+  pseudo_hdr->ip_src = ip_header->ip_src;
+  pseudo_hdr->ip_dst = ip_header->ip_dst;
+  pseudo_hdr->reserved = 0;
+  pseudo_hdr->ip_p = ip_header->ip_p;
+  pseudo_hdr->len = htons(tcp_length);
 
-  memcpy(pesudo + sizeof(sr_tcp_pesudo_hdr_t), tcp_hdr, tcp_length);
+  memcpy(pseudo + sizeof(sr_tcp_pseudo_hdr_t), tcp_hdr, tcp_length);
 
-  return cksum((void *)pesudo, total_length);
+  return cksum((void *)pseudo, total_length);
 }
 
 void send_icmp_unsol(struct sr_instance *sr, uint8_t *packet, int type, int code, uint length, char *iface) {
