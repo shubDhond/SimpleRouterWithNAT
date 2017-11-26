@@ -131,7 +131,7 @@ void received_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, cha
   if (sr->nat_active) {
     if (ip_header->ip_p == 6)
     {
-      int success = nat_received_tcp(sr, packet, interface, len);
+      int success = handle_nat_tcp(sr, packet, interface, len);
       if (success == -1)
       {
         printf("NAT handling TCP failed\n");
@@ -140,7 +140,7 @@ void received_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, cha
     }
     else if (ip_header->ip_p == ip_protocol_icmp)
     {
-      int success = nat_received_icmp(sr, packet, interface, len);
+      int success = handle_nat_icmp(sr, packet, interface, len);
       if (success == -1)
       {
         printf("NAT handling ICMP failed\n");
