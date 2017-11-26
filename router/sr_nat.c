@@ -197,7 +197,7 @@ void print_binary(uint8_t control) {
     if (control&1) {
       printf("1");
     } else {
-      print("0");
+      printf("0");
     }
     control = control>>1;
   }
