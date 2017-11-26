@@ -128,7 +128,7 @@ struct sr_tcp_hdr
 } __attribute__((packed));
 typedef struct sr_tcp_hdr sr_tcp_hdr_t;
 
-struct sr_tcp_pesudo_hdr
+struct sr_tcp_pseudo_hdr
 {
   uint32_t ip_src;
   uint32_t ip_dst;
@@ -136,7 +136,7 @@ struct sr_tcp_pesudo_hdr
   uint8_t ip_p;
   uint16_t len;
 } __attribute__((packed));
-typedef struct sr_tcp_pesudo_hdr sr_tcp_pesudo_hdr_t;
+typedef struct sr_tcp_pseudo_hdr sr_tcp_pseudo_hdr_t;
 
 /*
  * Structure of an internet header, naked of options.
