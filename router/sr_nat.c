@@ -192,7 +192,19 @@ struct sr_nat_mapping *sr_nat_insert_mapping(struct sr_nat *nat,
   return mapping;
 }
 
-int is_unsol_syn(uint8_t *packet) {
+void print_binary(uint8_t control) {
+  while (control) {
+    if (control&1) {
+      printf("1");
+    } else {
+      print("0");
+    }
+    control = control>>1;
+  }
+  printf("\n");
+}
+
+int is_syn_ack(uint8_t *packet) {
   sr_tcp_hdr_t *tcp_hdr = (sr_tcp_hdr_t *) (packet 
                                             + sizeof(sr_ethernet_hdr_t)
                                             + sizeof(sr_ip_hdr_t));
@@ -201,7 +213,8 @@ int is_unsol_syn(uint8_t *packet) {
   int syn_set = (control & (1<<1)) != 0 ? 1 : 0;
   int psh_set = (control & (1<<3)) != 0 ? 1 : 0;
   int ack_set = (control & (1<<4)) != 0 ? 1 : 0;
-
+  
+  print_binary(control);
   printf("FIN:%d\nSYN:%d\nPSH:%d\nACK:%d\n",fin_set,syn_set,psh_set,ack_set);
   if (syn_set && ack_set && !fin_set && !psh_set) {
     return 1;
@@ -370,7 +383,7 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
   sr_tcp_hdr_t *tcp = (sr_tcp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 
   char* matched_dest = sr_lpm(sr, ip->ip_dst);
-  int is_unsolicited = is_unsol_syn(packet);
+  int is_unsolicited = is_syn_ack(packet);
 
   if (is_unsolicited) {
     if (ntohs(tcp->port_dst) <= 1024 || 
@@ -426,9 +439,9 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
       printf("Returned TCP\n");
       return 0;
     } else {
-     /* pthread_mutex_lock(&sr->nat->lock);
+     pthread_mutex_lock(&sr->nat->lock);
 
-      if (is_unsol_syn(packet))
+      if (is_syn_ack(packet))
       {
         pthread_mutex_lock(&sr->nat->lock);
         struct sr_nat_mapping *mapping_check = sr_nat_lookup_external(sr->nat, ntohs(tcp->port_dst), nat_mapping_tcp);
@@ -453,7 +466,7 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
         }
       }
       pthread_mutex_unlock(&sr->nat->lock);
-      return 1;*/
+      return -1;
     }
   }
   return 0;
