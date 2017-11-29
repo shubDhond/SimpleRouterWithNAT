@@ -449,25 +449,31 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
 
       if (is_unsolicited)
       {
-        waiting_unsol_t *new_unsol = (waiting_unsol_t *)malloc(sizeof(waiting_unsol_t));
-        new_unsol->sr = sr;
-        new_unsol->packet = packet;
-        new_unsol->packet_len = length;
-        memcpy(new_unsol->iface, iface, 4);
-        new_unsol->waited = 0;
-        new_unsol->next = NULL;
+        if (tcp->port_dst >= 1024) {
+          waiting_unsol_t *new_unsol = (waiting_unsol_t *)malloc(sizeof(waiting_unsol_t));
+          new_unsol->sr = sr;
+          new_unsol->packet = packet;
+          new_unsol->packet_len = length;
+          memcpy(new_unsol->iface, iface, 4);
+          new_unsol->waited = 0;
+          new_unsol->next = NULL;
 
-        waiting_unsol_t* curr = sr->nat->waiting_unsol;
-        if (!curr) {
-          sr->nat->waiting_unsol = new_unsol;
-        } else {
-          while (curr->next) {
-            curr = curr->next;
+          waiting_unsol_t *curr = sr->nat->waiting_unsol;
+          if (!curr){
+            sr->nat->waiting_unsol = new_unsol;
+          } else {
+            while (curr->next)
+            {
+              curr = curr->next;
+            }
+            curr->next = new_unsol;
           }
-          curr->next = new_unsol;
+          pthread_mutex_unlock(&sr->nat->lock);
+          return -1;
+        } else if (tcp->port_dst == 22) {
+          pthread_mutex_unlock(&sr->nat->lock);
+          return 0;
         }
-        pthread_mutex_unlock(&sr->nat->lock);
-        return -1;
       }
       pthread_mutex_unlock(&sr->nat->lock);
     }
