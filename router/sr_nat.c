@@ -449,7 +449,7 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
 
       if (is_unsolicited)
       {
-        if (tcp->port_dst >= 1024) {
+        if (ntohs(tcp->port_dst) > 1024) {
           waiting_unsol_t *new_unsol = (waiting_unsol_t *)malloc(sizeof(waiting_unsol_t));
           new_unsol->sr = sr;
           new_unsol->packet = packet;
@@ -470,7 +470,7 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
           }
           pthread_mutex_unlock(&sr->nat->lock);
           return -1;
-        } else if (tcp->port_dst == 22) {
+        } else if (ntohs(tcp->port_dst) == 22) {
           pthread_mutex_unlock(&sr->nat->lock);
           return 0;
         }
