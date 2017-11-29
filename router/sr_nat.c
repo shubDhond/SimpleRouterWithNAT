@@ -77,8 +77,6 @@ void *sr_nat_timeout(void *nat_ptr) {  /* Periodic Timout handling */
     sleep(1.0);
     pthread_mutex_lock(&(nat->lock));
 
-    time_t curtime = time(NULL);
-
     /* handle periodic tasks here */
     waiting_unsol_t* curr = nat->waiting_unsol;
     while (curr) {
@@ -320,7 +318,7 @@ void send_icmp_unsol(struct sr_instance *sr, uint8_t *packet, int type, int code
   printf("Sending ICMP type:%d code:%d\n", type, code);
   sr_ethernet_hdr_t *ethernet = (sr_ethernet_hdr_t *) packet;
   sr_ip_hdr_t *ip = (sr_ip_hdr_t *) (packet + sizeof(sr_ethernet_hdr_t));
-  uint len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t);
+  uint len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
   uint8_t *new_packet = (uint8_t *) malloc(len);
 
   sr_ethernet_hdr_t *new_ethernet = (sr_ethernet_hdr_t *) new_packet;
@@ -449,33 +447,27 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
     } else {
       pthread_mutex_lock(&sr->nat->lock);
 
-      if (is_syn_ack(packet))
+      if (is_unsolicited)
       {
-        pthread_mutex_lock(&sr->nat->lock);
-        struct sr_nat_mapping *mapping_check = sr_nat_lookup_external(sr->nat, ntohs(tcp->port_dst), nat_mapping_tcp);
-        pthread_mutex_unlock(&sr->nat->lock);
-        if (!mapping_check) {
-          waiting_unsol_t *new_unsol = (waiting_unsol_t *)malloc(sizeof(waiting_unsol_t));
-          new_unsol->sr = sr;
-          new_unsol->packet = packet;
-          new_unsol->packet_len = length;
-          memcpy(new_unsol->iface, iface, 4);
-          new_unsol->waited = 0;
-          new_unsol->next = NULL;
+        waiting_unsol_t *new_unsol = (waiting_unsol_t *)malloc(sizeof(waiting_unsol_t));
+        new_unsol->sr = sr;
+        new_unsol->packet = packet;
+        new_unsol->packet_len = length;
+        memcpy(new_unsol->iface, iface, 4);
+        new_unsol->waited = 0;
+        new_unsol->next = NULL;
 
-          waiting_unsol_t* curr = sr->nat->waiting_unsol;
-          if (!curr) {
-            sr->nat->waiting_unsol = new_unsol;
-          } else {
-            while (curr->next) {
-              curr = curr->next;
-            }
-            curr->next = new_unsol;
-          }
-          return -1;
+        waiting_unsol_t* curr = sr->nat->waiting_unsol;
+        if (!curr) {
+          sr->nat->waiting_unsol = new_unsol;
         } else {
-          return 0;
+          while (curr->next) {
+            curr = curr->next;
+          }
+          curr->next = new_unsol;
         }
+        pthread_mutex_unlock(&sr->nat->lock);
+        return -1;
       }
       pthread_mutex_unlock(&sr->nat->lock);
     }
