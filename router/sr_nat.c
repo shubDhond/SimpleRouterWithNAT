@@ -218,7 +218,7 @@ void print_binary(uint8_t control) {
   printf("\n");
 }
 
-int is_syn_ack(uint8_t *packet) {
+int is_syn(uint8_t *packet) {
   sr_tcp_hdr_t *tcp_hdr = (sr_tcp_hdr_t *) (packet 
                                             + sizeof(sr_ethernet_hdr_t)
                                             + sizeof(sr_ip_hdr_t));
@@ -397,7 +397,7 @@ int nat_received_tcp(struct sr_instance *sr, uint8_t *packet, char *iface, uint 
   sr_tcp_hdr_t *tcp = (sr_tcp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 
   char* matched_dest = sr_lpm(sr, ip->ip_dst);
-  int is_unsolicited = is_syn_ack(packet);
+  int is_unsolicited = is_syn(packet);
 
   if (matched_dest && (strcmp(iface, "eth1") == 0) && (strcmp(matched_dest, "eth2") == 0)) {
     printf("TCP Internal -> External\n");
